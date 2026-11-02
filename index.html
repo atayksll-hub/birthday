@@ -131,15 +131,25 @@
   ];
 
   // 🖼 THE FINAL SCREEN: at one point everything stops (song, sounds, confetti, text)
-  // and this picture is shown in complete silence. Put the picture in the same folder
+  // and this picture is shown. Put the picture in the same folder
   // as this file and set its name here.
   const FINAL_PICTURE = "hi.png";
 
   // When does it happen? Set either one (or both, whichever comes first). 0 = off.
-  // The 30th click is the one that stops everything.
+  // The click that reaches this number is the one that stops everything.
   const STOP_AFTER_CLICKS = 100;
   // Seconds after the first click.
   const STOP_AFTER_SECONDS = 0;
+
+  // 🎵 The track that plays over the final picture (same folder as this file).
+  // Leave it as "" for no audio on the final screen.
+  const FINAL_TRACK = "hi.m4a";
+  const FINAL_TRACK_VOLUME = 1;   // 0 (silent) to 1 (full)
+
+  // 🚪 When the final track ends, the page quits itself. This is how many extra
+  // seconds the picture stays on screen after the track ends (0 = quit right away).
+  // With no final track (or if it fails to load), this is the time the picture stays up.
+  const QUIT_DELAY_SECONDS = 0;
 
   /* ===================== end of settings ===================== */
 
@@ -269,6 +279,32 @@
   let clickCount = 0;
   let stopTimer = null;
 
+  // Browsers only let a page close itself if the page was opened by a script,
+  // which isn't the case for a link someone clicked. So we try to close the tab,
+  // and if that is refused we replace the page with a blank one.
+  function quitSite() {
+    try { window.close(); } catch (err) {}
+    setTimeout(function () { location.replace("about:blank"); }, 200);
+  }
+
+  // plays the final track, then quits when it ends
+  function startFinalTrack() {
+    let done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      setTimeout(quitSite, QUIT_DELAY_SECONDS * 1000);
+    }
+    if (!FINAL_TRACK) { finish(); return; }
+    // reuse the song element: the browser already allows it to play sound
+    song.loop = false;
+    song.src = FINAL_TRACK;
+    song.volume = Math.max(0, Math.min(1, FINAL_TRACK_VOLUME));
+    song.addEventListener("ended", finish, { once: true });
+    song.addEventListener("error", finish, { once: true });
+    song.play().catch(finish);
+  }
+
   function stopEverything() {
     if (stopped) return;
     stopped = true;
@@ -281,6 +317,7 @@
     document.querySelector("h1").hidden = true;   // also stops the colour animation
     canvas.style.display = "none";
     document.getElementById("final").hidden = false;
+    startFinalTrack();
   }
 
   window.addEventListener("pointerdown", function (e) {
